@@ -79,32 +79,43 @@ type SortConfig = {
 
 // --- Memoized Components ---
 
-const AnalysisChart = memo(({ title, icon: Icon, data, xAxisKey, xAxisName, yAxisKey, yAxisName, unit, color }: any) => (
+const AnalysisChart = memo(({ title, icon: Icon, data, xAxisKey, xAxisName, yAxisKey, yAxisName, unit, color }: any) => {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  
+  return (
   <div className="bg-zinc-950 border border-zinc-900 p-4 md:p-6 space-y-4 rounded-xl text-white font-sans">
     <h4 className="font-medium text-zinc-500 flex items-center gap-2 text-[10px] md:text-sm uppercase tracking-wider">
       <Icon size={14} /> {title}
     </h4>
     <div className="h-[250px] md:h-[300px] w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: -20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#0a0a0a" vertical={false} />
-          <XAxis type="number" dataKey={xAxisKey} name={xAxisName} stroke="#27272a" fontSize={10} tickLine={false} axisLine={false} />
-          <YAxis type="number" dataKey={yAxisKey} name={yAxisName} unit={unit} stroke="#27272a" fontSize={10} tickLine={false} axisLine={false} />
-          <Tooltip 
-            cursor={{ strokeDasharray: '3 3' }}
-            contentStyle={{ background: '#000', border: '1px solid #18181b', borderRadius: '4px', fontSize: '10px' }}
-            itemStyle={{ color }}
-          />
-          <Scatter name="Puts" data={data}>
-              {data.map((entry: any, index: number) => (
-              <Cell key={`cell-${index}`} fill={color} fillOpacity={0.6} />
-            ))}
-          </Scatter>
-        </ScatterChart>
-      </ResponsiveContainer>
+      {mounted ? (
+        <ResponsiveContainer width="100%" height="100%">
+          <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: -20 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#0a0a0a" vertical={false} />
+            <XAxis type="number" dataKey={xAxisKey} name={xAxisName} stroke="#27272a" fontSize={10} tickLine={false} axisLine={false} />
+            <YAxis type="number" dataKey={yAxisKey} name={yAxisName} unit={unit} stroke="#27272a" fontSize={10} tickLine={false} axisLine={false} />
+            <Tooltip 
+              cursor={{ strokeDasharray: '3 3' }}
+              contentStyle={{ background: '#000', border: '1px solid #18181b', borderRadius: '4px', fontSize: '10px' }}
+              itemStyle={{ color }}
+            />
+            <Scatter name="Puts" data={data}>
+                {data.map((entry: any, index: number) => (
+                <Cell key={`cell-${index}`} fill={color} fillOpacity={0.6} />
+              ))}
+            </Scatter>
+          </ScatterChart>
+        </ResponsiveContainer>
+      ) : (
+        <div className="w-full h-full bg-zinc-950/50 animate-pulse rounded-lg flex items-center justify-center">
+          <Loader2 className="text-zinc-800 animate-spin" size={24} />
+        </div>
+      )}
     </div>
   </div>
-));
+);
+});
 AnalysisChart.displayName = 'AnalysisChart';
 
 const ResultsTable = memo(({ options, title, count }: { options: OptionData[], title: string, count?: number }) => {
@@ -333,13 +344,13 @@ const CustomKeypad = memo(({
   }, [input]);
 
   const MonthsGrid = () => (
-    <div className="grid grid-cols-4 gap-2 p-4">
+    <div className="max-w-xs mx-auto grid grid-cols-4 gap-2 p-4">
       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 18, 24].map(m => (
         <button 
           key={m}
           onClick={() => { onChange(m); onClose(); }}
           className={cn(
-            "py-3 rounded-xl font-bold transition-all active:scale-95",
+            "py-3 rounded-xl font-bold transition-all active:scale-95 text-xs",
             value === m ? "bg-emerald-500 text-black" : "bg-zinc-900 text-white border border-zinc-800"
           )}
         >
@@ -362,12 +373,12 @@ const CustomKeypad = memo(({
 
     return (
       <div className="flex flex-col h-full bg-black border-t border-zinc-800 animate-in slide-in-from-bottom duration-300">
-        <div className="flex items-center justify-between p-4 border-b border-zinc-900">
+        <div className="flex items-center justify-between p-2.5 border-b border-zinc-900">
           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Edit {type}</span>
-          <button onClick={onClose} className="p-2 bg-zinc-900 rounded-full text-zinc-400"><X size={16} /></button>
+          <button onClick={onClose} className="p-1 bg-zinc-900 rounded-full text-zinc-400"><X size={12} /></button>
         </div>
 
-        <div className="flex flex-wrap justify-center gap-2 p-4 bg-zinc-950/30">
+        <div className="flex flex-wrap justify-center gap-1.5 p-3 bg-zinc-950/30">
           {presets.map((p: any) => (
              <button 
                key={typeof p === 'number' ? p : p.label}
@@ -382,22 +393,22 @@ const CustomKeypad = memo(({
           ))}
         </div>
 
-        <div className="px-6 py-8 flex flex-col items-center justify-center bg-zinc-950">
-           <span className="text-[10px] text-zinc-600 uppercase font-black mb-2 tracking-widest">Current Input</span>
-           <div className="text-5xl font-mono font-bold text-white tracking-tighter">
+        <div className="px-6 py-1 flex flex-col items-center justify-center bg-zinc-950">
+           <span className="text-[8px] text-zinc-600 uppercase font-black mb-0.5 tracking-widest">Current Input</span>
+           <div className="text-3xl font-mono font-bold text-white tracking-tighter">
              {type === 'strike' && <span className="text-zinc-700 mr-2">$</span>}
              {input}
            </div>
         </div>
 
-        <div className="flex-1 grid grid-cols-3 gap-1 p-1 bg-zinc-950/50">
+        <div className="flex-1 grid grid-cols-3 gap-0.5 p-0.5 bg-zinc-950/50">
           {['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'BACK'].map(k => (
             <button 
               key={k} 
               onClick={() => handleKey(k)}
-              className="py-6 text-xl font-medium bg-zinc-900/40 hover:bg-zinc-800/60 active:bg-zinc-700/80 rounded-lg flex items-center justify-center transition-colors"
+              className="py-2.5 text-lg font-medium bg-zinc-900/40 hover:bg-zinc-800/60 active:bg-zinc-700/80 rounded flex items-center justify-center transition-colors"
             >
-              {k === 'BACK' ? <Delete size={20} /> : k}
+              {k === 'BACK' ? <Delete size={18} /> : k}
             </button>
           ))}
         </div>
@@ -407,7 +418,7 @@ const CustomKeypad = memo(({
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col justify-end bg-black/60 backdrop-blur-sm">
-      <div className="bg-black border-t border-zinc-800 rounded-t-[2rem] overflow-hidden max-h-[70vh]">
+      <div className="bg-black border-t border-zinc-800 rounded-t-[2rem] overflow-hidden max-h-[90vh]">
         {type === 'months' ? (
           <div className="p-4">
              <div className="flex items-center justify-between mb-4 px-2">
@@ -503,7 +514,8 @@ export default function CashSecuredPutAnalyzer() {
     return data.options.filter((opt: OptionData) => {
       const strikeMatch = opt.strike >= deferredStrikeFilter[0] && opt.strike <= deferredStrikeFilter[1];
       const expMatch = deferredSelectedExps.includes(opt.expiration);
-      return strikeMatch && expMatch;
+      const affordableMatch = opt.maxContracts > 0;
+      return strikeMatch && expMatch && affordableMatch;
     });
   }, [data, deferredStrikeFilter, deferredSelectedExps]);
 
@@ -562,19 +574,20 @@ export default function CashSecuredPutAnalyzer() {
                 <div className="grid grid-cols-2 gap-2">
                   <button onClick={() => setActiveKeypad('minMonths')} className="bg-zinc-900 py-3 rounded-xl border border-zinc-800 text-left px-4 group">
                     <p className="text-[8px] text-zinc-600 uppercase font-black mb-0.5">Min</p>
-                    <span className="text-sm font-bold">{minMonths}m</span>
+                    <span className="text-sm text-white">{minMonths}</span>
                   </button>
                   <button onClick={() => setActiveKeypad('maxMonths')} className="bg-zinc-900 py-3 rounded-xl border border-zinc-800 text-left px-4">
                     <p className="text-[8px] text-zinc-600 uppercase font-black mb-0.5">Max</p>
-                    <span className="text-sm font-bold">{maxMonths}m</span>
+                    <span className="text-sm text-white">{maxMonths}</span>
                   </button>
                 </div>
               </div>
 
               <div className="space-y-3">
                 <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Max Delta</label>
-                <button onClick={() => setActiveKeypad('minDelta')} className="w-full bg-zinc-900 py-4 rounded-xl border border-zinc-800 text-left px-4">
-                  <span className="text-lg font-mono text-emerald-500 font-bold">{minDelta}</span>
+                <button onClick={() => setActiveKeypad('minDelta')} className="w-full bg-zinc-900 py-3 rounded-xl border border-zinc-800 text-left px-4 group">
+                  <p className="text-[8px] text-zinc-600 uppercase font-black mb-0.5">Filter Limit</p>
+                  <span className="text-sm font-mono text-white">{minDelta}</span>
                 </button>
               </div>
 
@@ -584,11 +597,11 @@ export default function CashSecuredPutAnalyzer() {
                   <div className="grid grid-cols-2 gap-2">
                     <button onClick={() => setActiveKeypad('strikeMin')} className="bg-zinc-900 py-3 rounded-xl border border-zinc-800 text-left px-4">
                       <p className="text-[8px] text-zinc-600 uppercase font-black mb-0.5">Min Strike</p>
-                      <span className="text-sm font-mono font-bold">${strikeFilter[0]}</span>
+                      <span className="text-sm font-mono text-white">${strikeFilter[0]}</span>
                     </button>
                     <button onClick={() => setActiveKeypad('strikeMax')} className="bg-zinc-900 py-3 rounded-xl border border-zinc-800 text-left px-4">
                       <p className="text-[8px] text-zinc-600 uppercase font-black mb-0.5">Max Strike</p>
-                      <span className="text-sm font-mono font-bold">${strikeFilter[1]}</span>
+                      <span className="text-sm font-mono text-white">${strikeFilter[1]}</span>
                     </button>
                   </div>
                 </div>

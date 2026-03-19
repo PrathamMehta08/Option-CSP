@@ -79,8 +79,9 @@ export async function GET(req: NextRequest) {
 
         const capitalRequired = put.strike * 100;
         const maxContracts = Math.floor(capital / capitalRequired);
-
-        if (maxContracts < 1) return;
+        // We no longer return early if maxContracts < 1
+        // This allows the UI to show the full range of strikes for the stock price
+        // even if the user can't afford them with current capital.
 
         const sigma = put.impliedVolatility || 0;
         if (sigma <= 0) return;
