@@ -19,7 +19,8 @@ import {
   Clock,
   LayoutGrid,
   ArrowUpDown,
-  X
+  X,
+  Delete
 } from 'lucide-react';
 import { 
   ScatterChart, 
@@ -299,32 +300,151 @@ const DualRangeSlider = memo(({ min, max, value, onChange, label, unit = "$" }: 
 });
 DualRangeSlider.displayName = 'DualRangeSlider';
 
+const CustomKeypad = memo(({ 
+  type, 
+  value, 
+  onClose, 
+  onChange,
+  tickerPrice 
+}: { 
+  type: 'months' | 'delta' | 'strike', 
+  value: string | number, 
+  onClose: () => void, 
+  onChange: (val: any) => void,
+  tickerPrice?: number
+}) => {
+  const [input, setInput] = useState(value.toString());
+
+  const handleKey = (key: string) => {
+    if (key === 'BACK') {
+      setInput(prev => prev.length > 1 ? prev.slice(0, -1) : '0');
+    } else if (key === '.') {
+      if (!input.includes('.')) setInput(prev => prev + '.');
+    } else {
+      setInput(prev => prev === '0' ? key : prev + key);
+    }
+  };
+
+  useEffect(() => {
+    if (type !== 'months') {
+       const numeric = parseFloat(input);
+       if (!isNaN(numeric)) onChange(numeric);
+    }
+  }, [input]);
+
+  const MonthsGrid = () => (
+    <div className="grid grid-cols-4 gap-2 p-4">
+      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 18, 24].map(m => (
+        <button 
+          key={m}
+          onClick={() => { onChange(m); onClose(); }}
+          className={cn(
+            "py-3 rounded-xl font-bold transition-all active:scale-95",
+            value === m ? "bg-emerald-500 text-black" : "bg-zinc-900 text-white border border-zinc-800"
+          )}
+        >
+          {m}m
+        </button>
+      ))}
+    </div>
+  );
+
+  const Keypad = () => {
+    const presets = type === 'delta' 
+      ? [-0.10, -0.15, -0.20, -0.30, -0.40] 
+      : tickerPrice ? [
+          { label: '-5%', val: tickerPrice * 0.95 },
+          { label: '-10%', val: tickerPrice * 0.90 },
+          { label: '-15%', val: tickerPrice * 0.85 },
+          { label: '-20%', val: tickerPrice * 0.80 },
+          { label: '-25%', val: tickerPrice * 0.75 },
+        ] : [];
+
+    return (
+      <div className="flex flex-col h-full bg-black border-t border-zinc-800 animate-in slide-in-from-bottom duration-300">
+        <div className="flex items-center justify-between p-4 border-b border-zinc-900">
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Edit {type}</span>
+          <button onClick={onClose} className="p-2 bg-zinc-900 rounded-full text-zinc-400"><X size={16} /></button>
+        </div>
+
+        <div className="flex flex-wrap justify-center gap-2 p-4 bg-zinc-950/30">
+          {presets.map((p: any) => (
+             <button 
+               key={typeof p === 'number' ? p : p.label}
+               onClick={() => {
+                 const val = typeof p === 'number' ? p : p.val;
+                 setInput(val.toFixed(type === 'delta' ? 2 : 2));
+               }}
+               className="px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-full text-[10px] font-bold text-zinc-300 active:bg-emerald-500 active:text-black transition-colors"
+             >
+               {typeof p === 'number' ? p : `${p.label} ($${p.val.toFixed(2)})`}
+             </button>
+          ))}
+        </div>
+
+        <div className="px-6 py-8 flex flex-col items-center justify-center bg-zinc-950">
+           <span className="text-[10px] text-zinc-600 uppercase font-black mb-2 tracking-widest">Current Input</span>
+           <div className="text-5xl font-mono font-bold text-white tracking-tighter">
+             {type === 'strike' && <span className="text-zinc-700 mr-2">$</span>}
+             {input}
+           </div>
+        </div>
+
+        <div className="flex-1 grid grid-cols-3 gap-1 p-1 bg-zinc-950/50">
+          {['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'BACK'].map(k => (
+            <button 
+              key={k} 
+              onClick={() => handleKey(k)}
+              className="py-6 text-xl font-medium bg-zinc-900/40 hover:bg-zinc-800/60 active:bg-zinc-700/80 rounded-lg flex items-center justify-center transition-colors"
+            >
+              {k === 'BACK' ? <Delete size={20} /> : k}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex flex-col justify-end bg-black/60 backdrop-blur-sm">
+      <div className="bg-black border-t border-zinc-800 rounded-t-[2rem] overflow-hidden max-h-[70vh]">
+        {type === 'months' ? (
+          <div className="p-4">
+             <div className="flex items-center justify-between mb-4 px-2">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Expiry Selection</span>
+                <button onClick={onClose} className="p-2 bg-zinc-900 rounded-full text-zinc-400"><X size={16} /></button>
+             </div>
+             <MonthsGrid />
+          </div>
+        ) : <Keypad />}
+      </div>
+    </div>
+  );
+});
+
 // --- Main Page ---
 
 export default function CashSecuredPutAnalyzer() {
-  const [ticker, setTicker] = useState('TSLA');
-  const [capitalInput, setCapitalInput] = useState('50,000');
-  const [minMonths, setMinMonths] = useState(0);
-  const [maxMonths, setMaxMonths] = useState(3);
-  const [minDelta, setMinDelta] = useState(-0.5);
-   const [maxDelta, setMaxDelta] = useState(0);
-  
-  const prevTickerRef = useRef(ticker);
-  
+  const [ticker, setTicker] = useState('');
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Filter states
+  const [capitalInput, setCapitalInput] = useState('10,000');
+  const [minMonths, setMinMonths] = useState(0);
+  const [maxMonths, setMaxMonths] = useState(6);
+  const [minDelta, setMinDelta] = useState(-0.2);
   const [strikeFilter, setStrikeFilter] = useState<[number, number]>([0, 2000]);
   const [selectedExps, setSelectedExps] = useState<string[]>([]);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+
+  // Custom Keyboard State
+  const [activeKeypad, setActiveKeypad] = useState<'minMonths' | 'maxMonths' | 'minDelta' | 'strikeMin' | 'strikeMax' | null>(null);
   
   // Defer the filters so the sliders stay snappy
   const deferredStrikeFilter = useDeferredValue(strikeFilter);
   const deferredSelectedExps = useDeferredValue(selectedExps);
 
-  // Capital derived from input
+  const prevTickerRef = useRef('');
   const capital = useMemo(() => capitalInput.replace(/[^0-9.]/g, ''), [capitalInput]);
 
   const handleCapitalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -333,6 +453,7 @@ export default function CashSecuredPutAnalyzer() {
   };
 
   const fetchOptions = async () => {
+    if (!ticker) return;
     const tickerChanged = prevTickerRef.current !== ticker;
     prevTickerRef.current = ticker;
 
@@ -346,7 +467,7 @@ export default function CashSecuredPutAnalyzer() {
         minMonths: minMonths.toString(),
         maxMonths: maxMonths.toString(),
         minDelta: minDelta.toString(),
-        maxDelta: maxDelta.toString(),
+        maxDelta: "0",
       });
       const res = await fetch(`/api/options?${params}`);
       const json = await res.json();
@@ -379,7 +500,7 @@ export default function CashSecuredPutAnalyzer() {
 
   const filteredOptions = useMemo(() => {
     if (!data) return [];
-    return data.options.filter(opt => {
+    return data.options.filter((opt: OptionData) => {
       const strikeMatch = opt.strike >= deferredStrikeFilter[0] && opt.strike <= deferredStrikeFilter[1];
       const expMatch = deferredSelectedExps.includes(opt.expiration);
       return strikeMatch && expMatch;
@@ -424,7 +545,7 @@ export default function CashSecuredPutAnalyzer() {
           "lg:hidden overflow-y-auto transition-all duration-300 ease-in-out scrollbar-none",
           showMobileFilters ? "max-h-[85vh] opacity-100 py-6" : "max-h-0 opacity-0 py-0"
         )}>
-           <div className="space-y-8 px-1">
+            <div className="space-y-8 px-1">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Ticker</label>
@@ -435,39 +556,41 @@ export default function CashSecuredPutAnalyzer() {
                   <input type="text" value={capitalInput} onChange={handleCapitalChange} className="w-full bg-zinc-900 border border-zinc-800 rounded-md py-2 px-3 text-sm font-mono focus:border-zinc-500 outline-none text-white" />
                 </div>
               </div>
-              
-              <DualRangeSlider 
-                min={0}
-                max={12}
-                value={[minMonths, maxMonths]}
-                onChange={([min, max]) => { setMinMonths(min); setMaxMonths(max); }}
-                label="Months to Expiry"
-                unit=""
-              />
 
               <div className="space-y-3">
-                <div className="flex justify-between">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest leading-none">Max Delta</label>
-                  <span className="text-xs text-emerald-500 font-mono font-bold leading-none">{minDelta}</span>
+                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Months to Expiry</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => setActiveKeypad('minMonths')} className="bg-zinc-900 py-3 rounded-xl border border-zinc-800 text-left px-4 group">
+                    <p className="text-[8px] text-zinc-600 uppercase font-black mb-0.5">Min</p>
+                    <span className="text-sm font-bold">{minMonths}m</span>
+                  </button>
+                  <button onClick={() => setActiveKeypad('maxMonths')} className="bg-zinc-900 py-3 rounded-xl border border-zinc-800 text-left px-4">
+                    <p className="text-[8px] text-zinc-600 uppercase font-black mb-0.5">Max</p>
+                    <span className="text-sm font-bold">{maxMonths}m</span>
+                  </button>
                 </div>
-                <input 
-                  type="range" 
-                  min="-1" max="0" step="0.01"
-                  value={minDelta}
-                  onChange={(e) => setMinDelta(parseFloat(e.target.value))}
-                  className="premium-slider"
-                />
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Max Delta</label>
+                <button onClick={() => setActiveKeypad('minDelta')} className="w-full bg-zinc-900 py-4 rounded-xl border border-zinc-800 text-left px-4">
+                  <span className="text-lg font-mono text-emerald-500 font-bold">{minDelta}</span>
+                </button>
               </div>
 
               {data && (
-                <div className="space-y-6 pt-6 border-t border-zinc-900">
-                  <DualRangeSlider 
-                    min={Math.min(...data.options.map(o => o.strike))}
-                    max={Math.max(...data.options.map(o => o.strike))}
-                    value={strikeFilter}
-                    onChange={setStrikeFilter}
-                    label="Strike Price Filter"
-                  />
+                <div className="space-y-4 pt-6 border-t border-zinc-900">
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Strike Price Range</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={() => setActiveKeypad('strikeMin')} className="bg-zinc-900 py-3 rounded-xl border border-zinc-800 text-left px-4">
+                      <p className="text-[8px] text-zinc-600 uppercase font-black mb-0.5">Min Strike</p>
+                      <span className="text-sm font-mono font-bold">${strikeFilter[0]}</span>
+                    </button>
+                    <button onClick={() => setActiveKeypad('strikeMax')} className="bg-zinc-900 py-3 rounded-xl border border-zinc-800 text-left px-4">
+                      <p className="text-[8px] text-zinc-600 uppercase font-black mb-0.5">Max Strike</p>
+                      <span className="text-sm font-mono font-bold">${strikeFilter[1]}</span>
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -635,6 +758,50 @@ export default function CashSecuredPutAnalyzer() {
           </section>
         </div>
       </main>
+
+      {/* Custom Keypad Bottom Sheets */}
+      {activeKeypad === 'minMonths' && (
+        <CustomKeypad 
+          type="months" 
+          value={minMonths} 
+          onClose={() => setActiveKeypad(null)} 
+          onChange={setMinMonths} 
+        />
+      )}
+      {activeKeypad === 'maxMonths' && (
+        <CustomKeypad 
+          type="months" 
+          value={maxMonths} 
+          onClose={() => setActiveKeypad(null)} 
+          onChange={setMaxMonths} 
+        />
+      )}
+      {activeKeypad === 'minDelta' && (
+        <CustomKeypad 
+          type="delta" 
+          value={minDelta} 
+          onClose={() => setActiveKeypad(null)} 
+          onChange={setMinDelta} 
+        />
+      )}
+      {activeKeypad === 'strikeMin' && data && (
+        <CustomKeypad 
+          type="strike" 
+          value={strikeFilter[0]} 
+          onClose={() => setActiveKeypad(null)} 
+          onChange={(val) => setStrikeFilter([val, strikeFilter[1]])} 
+          tickerPrice={data.currentPrice}
+        />
+      )}
+      {activeKeypad === 'strikeMax' && data && (
+        <CustomKeypad 
+          type="strike" 
+          value={strikeFilter[1]} 
+          onClose={() => setActiveKeypad(null)} 
+          onChange={(val) => setStrikeFilter([strikeFilter[0], val])} 
+          tickerPrice={data.currentPrice}
+        />
+      )}
     </div>
   );
 }
