@@ -344,13 +344,13 @@ const CustomKeypad = memo(({
   }, [input]);
 
   const MonthsGrid = () => (
-    <div className="max-w-xs mx-auto grid grid-cols-4 gap-2 p-4">
+    <div className="max-w-xs mx-auto grid grid-cols-4 gap-3 p-4">
       {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
         <button 
           key={m}
           onClick={() => { onChange(m); onClose(); }}
           className={cn(
-            "py-3 rounded-xl font-bold transition-all active:scale-95 text-xs",
+            "py-8 rounded-[2rem] font-bold transition-all active:scale-95 text-lg",
             value === m ? "bg-emerald-500 text-black" : "bg-zinc-900 text-white border border-zinc-800"
           )}
         >
@@ -373,9 +373,9 @@ const CustomKeypad = memo(({
 
     return (
       <div className="flex flex-col h-full bg-black border-t border-zinc-800 animate-in slide-in-from-bottom duration-300">
-        <div className="flex items-center justify-between p-2.5 border-b border-zinc-900">
+        <div className="flex items-center justify-between p-3 border-b border-zinc-900">
           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Edit {type}</span>
-          <button onClick={onClose} className="p-1 bg-zinc-900 rounded-full text-zinc-400"><X size={12} /></button>
+          <button onClick={onClose} className="p-2 bg-zinc-900 rounded-full text-zinc-400"><X size={24} /></button>
         </div>
 
         <div className="flex flex-wrap justify-center gap-1.5 p-3 bg-zinc-950/30">
@@ -421,9 +421,9 @@ const CustomKeypad = memo(({
       <div className="bg-black border-t border-zinc-800 rounded-t-[2rem] overflow-hidden h-[75vh]">
         {type === 'months' ? (
           <div className="p-4">
-             <div className="flex items-center justify-between mb-4 px-2">
+             <div className="flex items-center justify-between mb-8 px-4 pt-4">
                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Expiry Selection</span>
-                <button onClick={onClose} className="p-2 bg-zinc-900 rounded-full text-zinc-400"><X size={16} /></button>
+                <button onClick={onClose} className="p-3 bg-zinc-900 rounded-full text-zinc-400"><X size={24} /></button>
              </div>
              <MonthsGrid />
           </div>
