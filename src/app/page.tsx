@@ -344,7 +344,7 @@ const CustomKeypad = memo(({
   }, [input]);
 
   const MonthsGrid = () => (
-    <div className="max-w-xs mx-auto grid grid-cols-4 gap-3 p-4">
+    <div className="max-w-xs mx-auto grid grid-cols-3 gap-3 p-4">
       {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
         <button 
           key={m}
