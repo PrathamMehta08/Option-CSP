@@ -336,10 +336,10 @@ export default function CashSecuredPutAnalyzer() {
         
         {/* Mobile Parameters Dropdown (Sticky within header) */}
         <div className={cn(
-          "lg:hidden overflow-hidden transition-all duration-300 ease-in-out",
+          "lg:hidden overflow-y-auto transition-all duration-300 ease-in-out scrollbar-none",
           showMobileFilters ? "max-h-[85vh] opacity-100 py-6" : "max-h-0 opacity-0 py-0"
         )}>
-           <div className="space-y-6">
+           <div className="space-y-8 px-1">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Ticker</label>
@@ -367,6 +367,50 @@ export default function CashSecuredPutAnalyzer() {
                    </div>
                 </div>
               </div>
+
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest leading-none">Max Delta</label>
+                  <span className="text-xs text-emerald-500 font-mono font-bold leading-none">{minDelta}</span>
+                </div>
+                <input 
+                  type="range" 
+                  min="-1" max="0" step="0.01"
+                  value={minDelta}
+                  onChange={(e) => setMinDelta(parseFloat(e.target.value))}
+                  className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-white"
+                />
+              </div>
+
+              {data && (
+                <div className="space-y-6 pt-6 border-t border-zinc-900">
+                  <div className="space-y-4">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest text-zinc-400">Strike Price Filter</label>
+                    <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
+                      <div className="bg-zinc-900 py-1.5 rounded-lg border border-zinc-800 text-center text-zinc-100 font-bold">${strikeFilter[0]}</div>
+                      <div className="bg-zinc-900 py-1.5 rounded-lg border border-zinc-800 text-center text-zinc-100 font-bold">${strikeFilter[1]}</div>
+                    </div>
+                    <div className="space-y-3">
+                      <input 
+                        type="range" 
+                        min={Math.min(...data.options.map(o => o.strike))} 
+                        max={Math.max(...data.options.map(o => o.strike))} 
+                        value={strikeFilter[0]}
+                        onChange={(e) => setStrikeFilter([parseInt(e.target.value), strikeFilter[1]])}
+                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                      />
+                      <input 
+                        type="range" 
+                        min={Math.min(...data.options.map(o => o.strike))} 
+                        max={Math.max(...data.options.map(o => o.strike))} 
+                        value={strikeFilter[1]}
+                        onChange={(e) => setStrikeFilter([strikeFilter[0], parseInt(e.target.value)])}
+                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <button 
                 onClick={fetchOptions}

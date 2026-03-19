@@ -3,8 +3,9 @@ import YahooFinance from 'yahoo-finance2';
 import { calculatePutDelta } from '@/lib/math';
 import { addMonths, isWithinInterval } from 'date-fns';
 
-// In v3, the default export is a class that MUST be instantiated
-const yahooFinance = new YahooFinance();
+const yahooFinance = new YahooFinance({
+  suppressNotices: ['yahooSurvey'],
+});
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
