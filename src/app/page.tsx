@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useDeferredValue, memo } from 'react';
+import React, { useState, useEffect, useMemo, useDeferredValue, memo, useRef } from 'react';
 import { 
   Search, 
   DollarSign, 
@@ -232,7 +232,9 @@ export default function CashSecuredPutAnalyzer() {
   const [minMonths, setMinMonths] = useState(0);
   const [maxMonths, setMaxMonths] = useState(3);
   const [minDelta, setMinDelta] = useState(-0.5);
-  const [maxDelta, setMaxDelta] = useState(0);
+   const [maxDelta, setMaxDelta] = useState(0);
+  
+  const prevTickerRef = useRef(ticker);
   
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -256,6 +258,9 @@ export default function CashSecuredPutAnalyzer() {
   };
 
   const fetchOptions = async () => {
+    const tickerChanged = prevTickerRef.current !== ticker;
+    prevTickerRef.current = ticker;
+
     setLoading(true);
     setError(null);
     setShowMobileFilters(false);
@@ -275,10 +280,15 @@ export default function CashSecuredPutAnalyzer() {
       } else {
         setData(json);
         if (json.options.length > 0) {
-          const strikes = json.options.map((o: OptionData) => o.strike);
-          setStrikeFilter([Math.min(...strikes), Math.max(...strikes)]);
-          const exps = Array.from(new Set(json.options.map((o: OptionData) => o.expiration))) as string[];
-          setSelectedExps(exps);
+          if (tickerChanged) {
+            const strikes = json.options.map((o: OptionData) => o.strike);
+            setStrikeFilter([Math.min(...strikes), Math.max(...strikes)]);
+            const exps = Array.from(new Set(json.options.map((o: OptionData) => o.expiration))) as string[];
+            setSelectedExps(exps);
+          } else {
+            // If ticker is same, just ensure current filters are within bounds of new data if they were defaults
+            // Actually, usually we just want to keep them.
+          }
         }
       }
     } catch (err) {
@@ -359,11 +369,11 @@ export default function CashSecuredPutAnalyzer() {
                 <div className="grid grid-cols-2 gap-8 p-1">
                    <div className="flex flex-col gap-3">
                      <span className="text-[10px] text-zinc-600 uppercase font-medium">Min Limit</span>
-                     <input type="range" min="0" max="12" step="1" value={minMonths} onChange={(e) => setMinMonths(parseInt(e.target.value))} className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-white" />
+                     <input type="range" min="0" max="12" step="1" value={minMonths} onChange={(e) => setMinMonths(parseInt(e.target.value))} className="premium-slider" />
                    </div>
                    <div className="flex flex-col gap-3">
                      <span className="text-[10px] text-zinc-600 uppercase font-medium">Max Limit</span>
-                     <input type="range" min="0" max="12" step="1" value={maxMonths} onChange={(e) => setMaxMonths(parseInt(e.target.value))} className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-white" />
+                     <input type="range" min="0" max="12" step="1" value={maxMonths} onChange={(e) => setMaxMonths(parseInt(e.target.value))} className="premium-slider" />
                    </div>
                 </div>
               </div>
@@ -378,7 +388,7 @@ export default function CashSecuredPutAnalyzer() {
                   min="-1" max="0" step="0.01"
                   value={minDelta}
                   onChange={(e) => setMinDelta(parseFloat(e.target.value))}
-                  className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-white"
+                  className="premium-slider"
                 />
               </div>
 
@@ -397,7 +407,7 @@ export default function CashSecuredPutAnalyzer() {
                         max={Math.max(...data.options.map(o => o.strike))} 
                         value={strikeFilter[0]}
                         onChange={(e) => setStrikeFilter([parseInt(e.target.value), strikeFilter[1]])}
-                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                        className="premium-slider accent-emerald"
                       />
                       <input 
                         type="range" 
@@ -405,7 +415,7 @@ export default function CashSecuredPutAnalyzer() {
                         max={Math.max(...data.options.map(o => o.strike))} 
                         value={strikeFilter[1]}
                         onChange={(e) => setStrikeFilter([strikeFilter[0], parseInt(e.target.value)])}
-                        className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                        className="premium-slider accent-emerald"
                       />
                     </div>
                   </div>
@@ -460,11 +470,11 @@ export default function CashSecuredPutAnalyzer() {
                     <div className="space-y-6">
                       <div className="space-y-3">
                         <div className="flex justify-between text-[9px] text-zinc-600 uppercase font-bold"><span>Start</span><span>{minMonths}mo</span></div>
-                        <input type="range" min="0" max="12" step="1" value={minMonths} onChange={(e) => setMinMonths(parseInt(e.target.value))} className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-white" />
+                        <input type="range" min="0" max="12" step="1" value={minMonths} onChange={(e) => setMinMonths(parseInt(e.target.value))} className="premium-slider" />
                       </div>
                       <div className="space-y-3">
                         <div className="flex justify-between text-[9px] text-zinc-600 uppercase font-bold"><span>End</span><span>{maxMonths}mo</span></div>
-                        <input type="range" min="0" max="12" step="1" value={maxMonths} onChange={(e) => setMaxMonths(parseInt(e.target.value))} className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-white" />
+                        <input type="range" min="0" max="12" step="1" value={maxMonths} onChange={(e) => setMaxMonths(parseInt(e.target.value))} className="premium-slider" />
                       </div>
                     </div>
                   </div>
@@ -479,7 +489,7 @@ export default function CashSecuredPutAnalyzer() {
                       min="-1" max="0" step="0.01"
                       value={minDelta}
                       onChange={(e) => setMinDelta(parseFloat(e.target.value))}
-                      className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-white"
+                      className="premium-slider"
                     />
                   </div>
 
@@ -511,7 +521,7 @@ export default function CashSecuredPutAnalyzer() {
                           max={Math.max(...data.options.map(o => o.strike))} 
                           value={strikeFilter[0]}
                           onChange={(e) => setStrikeFilter([parseInt(e.target.value), strikeFilter[1]])}
-                          className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                          className="premium-slider accent-emerald"
                         />
                         <input 
                           type="range" 
@@ -519,7 +529,7 @@ export default function CashSecuredPutAnalyzer() {
                           max={Math.max(...data.options.map(o => o.strike))} 
                           value={strikeFilter[1]}
                           onChange={(e) => setStrikeFilter([strikeFilter[0], parseInt(e.target.value)])}
-                          className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                          className="premium-slider accent-emerald"
                         />
                       </div>
                     </div>
