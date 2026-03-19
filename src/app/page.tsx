@@ -224,6 +224,81 @@ const ResultsTable = memo(({ options, title, count }: { options: OptionData[], t
 });
 ResultsTable.displayName = 'ResultsTable';
 
+const DualRangeSlider = memo(({ min, max, value, onChange, label, unit = "$" }: { min: number, max: number, value: [number, number], onChange: (val: [number, number]) => void, label?: string, unit?: string }) => {
+  const [localValue, setLocalValue] = useState(value);
+
+  // Sync with parent when it changes externally (e.g. data fetch)
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value[0], value[1]]);
+
+  // Debounced update to parent to keep things snappy
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (localValue[0] !== value[0] || localValue[1] !== value[1]) {
+        onChange(localValue);
+      }
+    }, 50); // Small 50ms debounce for 'live' but efficient feel
+    return () => clearTimeout(timer);
+  }, [localValue, onChange, value]);
+
+  const minVal = Math.min(min, max);
+  const maxVal = Math.max(min, max);
+
+  const handleLowChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseInt(e.target.value);
+    setLocalValue([Math.min(val, localValue[1]), localValue[1]]);
+  };
+
+  const handleHighChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseInt(e.target.value);
+    setLocalValue([localValue[0], Math.max(val, localValue[0])]);
+  };
+
+  return (
+    <div className="space-y-4">
+      {label && (
+        <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest leading-none block">{label}</label>
+      )}
+      <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
+        <div className="bg-zinc-900 py-1.5 rounded-lg border border-zinc-800 text-center text-zinc-100 font-bold">{unit}{localValue[0]}</div>
+        <div className="bg-zinc-900 py-1.5 rounded-lg border border-zinc-800 text-center text-zinc-100 font-bold">{unit}{localValue[1]}</div>
+      </div>
+      <div className="dual-range-container">
+        {/* Track Background */}
+        <div className="absolute w-full h-1.5 bg-zinc-900 rounded-full border border-zinc-800" />
+        
+        {/* Active Range Highlight */}
+        <div 
+          className="absolute h-1.5 bg-emerald-500 rounded-full z-0" 
+          style={{
+            left: `${((localValue[0] - minVal) / (maxVal - minVal || 1)) * 100}%`,
+            right: `${100 - ((localValue[1] - minVal) / (maxVal - minVal || 1)) * 100}%`
+          }}
+        />
+
+        <input 
+          type="range" 
+          min={minVal} 
+          max={maxVal} 
+          value={localValue[0]} 
+          onChange={handleLowChange}
+          className="dual-range-input accent-emerald z-10"
+        />
+        <input 
+          type="range" 
+          min={minVal} 
+          max={maxVal} 
+          value={localValue[1]} 
+          onChange={handleHighChange}
+          className="dual-range-input accent-emerald z-20"
+        />
+      </div>
+    </div>
+  );
+});
+DualRangeSlider.displayName = 'DualRangeSlider';
+
 // --- Main Page ---
 
 export default function CashSecuredPutAnalyzer() {
@@ -361,22 +436,14 @@ export default function CashSecuredPutAnalyzer() {
                 </div>
               </div>
               
-              <div className="space-y-3">
-                <div className="flex justify-between text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-                  <span>Months to Expiry</span>
-                  <span className="text-white">{minMonths} - {maxMonths}mo</span>
-                </div>
-                <div className="grid grid-cols-2 gap-8 p-1">
-                   <div className="flex flex-col gap-3">
-                     <span className="text-[10px] text-zinc-600 uppercase font-medium">Min Limit</span>
-                     <input type="range" min="0" max="12" step="1" value={minMonths} onChange={(e) => setMinMonths(parseInt(e.target.value))} className="premium-slider" />
-                   </div>
-                   <div className="flex flex-col gap-3">
-                     <span className="text-[10px] text-zinc-600 uppercase font-medium">Max Limit</span>
-                     <input type="range" min="0" max="12" step="1" value={maxMonths} onChange={(e) => setMaxMonths(parseInt(e.target.value))} className="premium-slider" />
-                   </div>
-                </div>
-              </div>
+              <DualRangeSlider 
+                min={0}
+                max={12}
+                value={[minMonths, maxMonths]}
+                onChange={([min, max]) => { setMinMonths(min); setMaxMonths(max); }}
+                label="Months to Expiry"
+                unit=""
+              />
 
               <div className="space-y-3">
                 <div className="flex justify-between">
@@ -394,31 +461,13 @@ export default function CashSecuredPutAnalyzer() {
 
               {data && (
                 <div className="space-y-6 pt-6 border-t border-zinc-900">
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest text-zinc-400">Strike Price Filter</label>
-                    <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
-                      <div className="bg-zinc-900 py-1.5 rounded-lg border border-zinc-800 text-center text-zinc-100 font-bold">${strikeFilter[0]}</div>
-                      <div className="bg-zinc-900 py-1.5 rounded-lg border border-zinc-800 text-center text-zinc-100 font-bold">${strikeFilter[1]}</div>
-                    </div>
-                    <div className="space-y-3">
-                      <input 
-                        type="range" 
-                        min={Math.min(...data.options.map(o => o.strike))} 
-                        max={Math.max(...data.options.map(o => o.strike))} 
-                        value={strikeFilter[0]}
-                        onChange={(e) => setStrikeFilter([parseInt(e.target.value), strikeFilter[1]])}
-                        className="premium-slider accent-emerald"
-                      />
-                      <input 
-                        type="range" 
-                        min={Math.min(...data.options.map(o => o.strike))} 
-                        max={Math.max(...data.options.map(o => o.strike))} 
-                        value={strikeFilter[1]}
-                        onChange={(e) => setStrikeFilter([strikeFilter[0], parseInt(e.target.value)])}
-                        className="premium-slider accent-emerald"
-                      />
-                    </div>
-                  </div>
+                  <DualRangeSlider 
+                    min={Math.min(...data.options.map(o => o.strike))}
+                    max={Math.max(...data.options.map(o => o.strike))}
+                    value={strikeFilter}
+                    onChange={setStrikeFilter}
+                    label="Strike Price Filter"
+                  />
                 </div>
               )}
 
@@ -462,22 +511,14 @@ export default function CashSecuredPutAnalyzer() {
                     />
                   </div>
 
-                  <div className="space-y-6">
-                    <div className="flex justify-between items-center text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-                      <span>Months Range</span>
-                      <span className="text-emerald-500">{minMonths} - {maxMonths}mo</span>
-                    </div>
-                    <div className="space-y-6">
-                      <div className="space-y-3">
-                        <div className="flex justify-between text-[9px] text-zinc-600 uppercase font-bold"><span>Start</span><span>{minMonths}mo</span></div>
-                        <input type="range" min="0" max="12" step="1" value={minMonths} onChange={(e) => setMinMonths(parseInt(e.target.value))} className="premium-slider" />
-                      </div>
-                      <div className="space-y-3">
-                        <div className="flex justify-between text-[9px] text-zinc-600 uppercase font-bold"><span>End</span><span>{maxMonths}mo</span></div>
-                        <input type="range" min="0" max="12" step="1" value={maxMonths} onChange={(e) => setMaxMonths(parseInt(e.target.value))} className="premium-slider" />
-                      </div>
-                    </div>
-                  </div>
+                  <DualRangeSlider 
+                    min={0}
+                    max={12}
+                    value={[minMonths, maxMonths]}
+                    onChange={([min, max]) => { setMinMonths(min); setMaxMonths(max); }}
+                    label="Months Range"
+                    unit=""
+                  />
 
                   <div className="space-y-3">
                     <div className="flex justify-between">
@@ -508,31 +549,13 @@ export default function CashSecuredPutAnalyzer() {
                   <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 border-b border-zinc-900 pb-2">Refine Results</h2>
                   
                   <div className="space-y-8 font-sans">
-                    <div className="space-y-4">
-                      <label className="text-xs font-semibold text-zinc-400">Strike Price Filter</label>
-                      <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
-                        <div className="bg-zinc-900 py-1.5 rounded-lg border border-zinc-800 text-center text-zinc-100 font-bold">${strikeFilter[0]}</div>
-                        <div className="bg-zinc-900 py-1.5 rounded-lg border border-zinc-800 text-center text-zinc-100 font-bold">${strikeFilter[1]}</div>
-                      </div>
-                      <div className="space-y-3">
-                        <input 
-                          type="range" 
-                          min={Math.min(...data.options.map(o => o.strike))} 
-                          max={Math.max(...data.options.map(o => o.strike))} 
-                          value={strikeFilter[0]}
-                          onChange={(e) => setStrikeFilter([parseInt(e.target.value), strikeFilter[1]])}
-                          className="premium-slider accent-emerald"
-                        />
-                        <input 
-                          type="range" 
-                          min={Math.min(...data.options.map(o => o.strike))} 
-                          max={Math.max(...data.options.map(o => o.strike))} 
-                          value={strikeFilter[1]}
-                          onChange={(e) => setStrikeFilter([strikeFilter[0], parseInt(e.target.value)])}
-                          className="premium-slider accent-emerald"
-                        />
-                      </div>
-                    </div>
+                    <DualRangeSlider 
+                      min={Math.min(...data.options.map(o => o.strike))}
+                      max={Math.max(...data.options.map(o => o.strike))}
+                      value={strikeFilter}
+                      onChange={setStrikeFilter}
+                      label="Strike Price Filter"
+                    />
 
                     <div className="space-y-3">
                       <label className="text-xs font-semibold text-zinc-400">Specific Expirations</label>
