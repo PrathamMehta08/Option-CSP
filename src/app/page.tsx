@@ -418,7 +418,7 @@ const CustomKeypad = memo(({
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col justify-end bg-black/60 backdrop-blur-sm">
-      <div className="bg-black border-t border-zinc-800 rounded-t-[2rem] overflow-hidden max-h-[90vh]">
+      <div className="bg-black border-t border-zinc-800 rounded-t-[2rem] overflow-hidden h-[75vh]">
         {type === 'months' ? (
           <div className="p-4">
              <div className="flex items-center justify-between mb-4 px-2">
