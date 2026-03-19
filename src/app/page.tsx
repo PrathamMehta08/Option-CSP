@@ -345,7 +345,7 @@ const CustomKeypad = memo(({
 
   const MonthsGrid = () => (
     <div className="max-w-xs mx-auto grid grid-cols-4 gap-2 p-4">
-      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 18, 24].map(m => (
+      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
         <button 
           key={m}
           onClick={() => { onChange(m); onClose(); }}
@@ -406,9 +406,9 @@ const CustomKeypad = memo(({
             <button 
               key={k} 
               onClick={() => handleKey(k)}
-              className="py-2.5 text-lg font-medium bg-zinc-900/40 hover:bg-zinc-800/60 active:bg-zinc-700/80 rounded flex items-center justify-center transition-colors"
+              className="py-3.5 text-xl font-medium bg-zinc-900/40 hover:bg-zinc-800/60 active:bg-zinc-700/80 rounded flex items-center justify-center transition-colors"
             >
-              {k === 'BACK' ? <Delete size={18} /> : k}
+              {k === 'BACK' ? <Delete size={20} /> : k}
             </button>
           ))}
         </div>
