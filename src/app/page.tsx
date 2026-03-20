@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useDeferredValue, memo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useDeferredValue, memo, useRef, useCallback } from 'react';
 import { 
   Search, 
   DollarSign, 
@@ -326,55 +326,57 @@ const CustomKeypad = memo(({
   tickerPrice?: number,
   allExps?: string[]
 }) => {
-  const [input, setInput] = useState(value.toString());
+  // Use local state for the active editing value to prevent immediate parent re-renders
+  const [localValue, setLocalValue] = useState<any>(() => {
+    if (type === 'delta') return Math.abs(value).toString();
+    if (type === 'expirations') return Array.isArray(value) ? [...value] : [];
+    return value.toString();
+  });
+  
   const [isFirstKey, setIsFirstKey] = useState(true);
 
-  const handleKey = (key: string) => {
-    if (key === 'BACK') {
-      if (isFirstKey) {
-        setInput((prev: string) => prev.length > 1 ? prev.slice(0, -1) : '0');
-        setIsFirstKey(false);
-      } else {
-        setInput((prev: string) => prev.length > 1 ? prev.slice(0, -1) : '0');
-      }
-    } else if (key === '.') {
-      if (isFirstKey) {
-        setInput('0.');
-        setIsFirstKey(false);
-      } else {
-        if (!input.includes('.')) setInput((prev: string) => prev + '.');
-      }
-    } else {
-      if (isFirstKey) {
-        setInput(key);
-        setIsFirstKey(false);
-      } else {
-        setInput((prev: string) => prev === '0' ? key : prev + key);
-      }
-    }
-  };
-
+  // Sync back to parent for non-immediate types (delta, strike) with a debounce
   useEffect(() => {
-    if (type !== 'months' && type !== 'expirations') {
-       const timer = setTimeout(() => {
-         const numeric = parseFloat(input);
-         if (!isNaN(numeric)) {
-           onChange(type === 'delta' ? -Math.abs(numeric) : numeric);
-         }
-       }, 50); // Small 50ms debounce
-       return () => clearTimeout(timer);
+    if (type === 'delta' || type === 'strike') {
+      const timer = setTimeout(() => {
+        const numeric = parseFloat(localValue);
+        if (!isNaN(numeric)) {
+          onChange(type === 'delta' ? -Math.abs(numeric) : numeric);
+        }
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [input, onChange, type]);
+  }, [localValue, onChange, type]);
 
-  const formatDateLabel = (dateStr: string) => {
+  const handleKey = useCallback((key: string) => {
+    setLocalValue((prev: any) => {
+      const str = prev.toString();
+      if (key === 'BACK') {
+        return str.length > 1 ? str.slice(0, -1) : '0';
+      }
+      if (key === '.') {
+        if (!str.includes('.')) return str + '.';
+        return str;
+      }
+      // Numeric key
+      if (isFirstKey) {
+        setIsFirstKey(false);
+        return key;
+      }
+      return str === '0' ? key : str + key;
+    });
+  }, [isFirstKey]);
+
+  const formatDateLabel = useCallback((dateStr: string) => {
     try {
-      const d = new Date(dateStr + 'T12:00:00'); // Ensure middle of day to avoid timezone shifts
+      const d = new Date(dateStr + 'T12:00:00');
       return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     } catch {
       return dateStr;
     }
-  };
+  }, []);
 
+  // Sub-components as local renders to avoid re-mounting logic issues
   const MonthsGrid = () => (
     <div className="flex-1 grid grid-cols-4 grid-rows-4 gap-0.5 p-0.5 bg-zinc-950/50 rounded-xl overflow-hidden min-h-0">
       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0].map(m => (
@@ -397,14 +399,16 @@ const CustomKeypad = memo(({
     <div className="flex-1 overflow-y-auto p-0.5 bg-zinc-950/50 scrollbar-none">
        <div className="grid grid-cols-3 gap-0.5 rounded-xl overflow-hidden">
         {allExps?.map((exp: string) => {
-          const isSelected = value.includes(exp);
+          const isSelected = Array.isArray(localValue) && localValue.includes(exp);
           return (
             <button 
               key={exp}
               onClick={() => {
+                const current = Array.isArray(localValue) ? localValue : [];
                 const newVal = isSelected 
-                  ? value.filter((e: string) => e !== exp)
-                  : [...value, exp];
+                  ? current.filter((e: string) => e !== exp)
+                  : [...current, exp];
+                setLocalValue(newVal);
                 onChange(newVal);
               }}
               className={cn(
@@ -427,7 +431,7 @@ const CustomKeypad = memo(({
     </div>
   );
 
-  const Keypad = () => {
+  const NumericKeypad = () => {
     const presets = type === 'delta' 
       ? [-0.10, -0.15, -0.20, -0.30, -0.40] 
       : tickerPrice ? [
@@ -440,7 +444,7 @@ const CustomKeypad = memo(({
         ] : [];
 
     return (
-      <div className="flex flex-col h-full bg-black border-t border-zinc-800 animate-in slide-in-from-bottom duration-300">
+      <div className="flex flex-col h-full">
         <div className="flex items-center justify-between p-3 border-b border-zinc-900">
           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Edit {type}</span>
           <button onClick={onClose} className="p-2 bg-zinc-900 rounded-full text-zinc-400"><X size={24} /></button>
@@ -452,7 +456,7 @@ const CustomKeypad = memo(({
                key={typeof p === 'number' ? p : p.label}
                onClick={() => {
                  const val = typeof p === 'number' ? p : p.val;
-                 setInput(val.toFixed(type === 'delta' ? 2 : 2));
+                 setLocalValue(Math.abs(val).toFixed(2));
                  setIsFirstKey(false);
                }}
                className="px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-full text-[10px] font-bold text-zinc-300 active:bg-emerald-500 active:text-black transition-colors"
@@ -469,7 +473,7 @@ const CustomKeypad = memo(({
            )}>
              {type === 'strike' && <span className={cn(isFirstKey ? "text-zinc-800" : "text-zinc-700", "mr-2")}>$</span>}
              {type === 'delta' && <span className={cn(isFirstKey ? "text-zinc-800" : "text-zinc-700", "mr-0.5")}>-</span>}
-             {input}
+             {localValue.toString()}
            </div>
         </div>
 
@@ -490,9 +494,9 @@ const CustomKeypad = memo(({
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col justify-end bg-black/60 backdrop-blur-sm">
-      <div className="bg-black border-t border-zinc-800 rounded-t-[2rem] overflow-hidden h-fit max-h-[85vh] min-h-[50vh] flex flex-col">
+      <div className="bg-black border-t border-zinc-800 rounded-t-[2rem] overflow-hidden h-fit max-h-[85vh] min-h-[50vh] flex flex-col animate-in slide-in-from-bottom duration-300">
         {type === 'months' ? (
-          <div className="flex flex-col flex-1 bg-black animate-in slide-in-from-bottom duration-300 rounded-t-[2rem] overflow-hidden border-t border-zinc-800">
+          <div className="flex flex-col flex-1">
              <div className="flex items-center justify-between p-3 border-b border-zinc-900">
                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Expiry Selection</span>
                 <button onClick={onClose} className="p-2 bg-zinc-900 rounded-full text-zinc-400"><X size={24} /></button>
@@ -500,12 +504,15 @@ const CustomKeypad = memo(({
              <MonthsGrid />
           </div>
         ) : type === 'expirations' ? (
-          <div className="flex flex-col flex-1 bg-black animate-in slide-in-from-bottom duration-300 rounded-t-[2rem] overflow-hidden border-t border-zinc-800">
+          <div className="flex flex-col flex-1">
              <div className="flex items-center justify-between p-3 border-b border-zinc-900">
                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Filter Strike Dates</span>
                 <div className="flex items-center gap-2">
                    <button 
-                     onClick={() => onChange(allExps || [])}
+                     onClick={() => { 
+                       setLocalValue(allExps || []); 
+                       onChange(allExps || []); 
+                     }}
                      className="px-3 py-1.5 bg-zinc-900 rounded-lg text-[10px] font-bold text-zinc-400 uppercase tracking-widest hover:text-white"
                    >All</button>
                    <button onClick={onClose} className="p-2 bg-zinc-900 rounded-full text-zinc-400"><X size={24} /></button>
@@ -513,7 +520,7 @@ const CustomKeypad = memo(({
              </div>
              <ExpirationsGrid />
           </div>
-        ) : <Keypad />}
+        ) : <NumericKeypad />}
       </div>
     </div>
   );
@@ -541,29 +548,33 @@ export default function CashSecuredPutAnalyzer() {
   const handleStrikeMaxChange = React.useCallback((v: number) => setStrikeFilter(prev => [prev[0], v]), []);
   const [activeKeypad, setActiveKeypad] = useState<'minMonths' | 'maxMonths' | 'minDelta' | 'strikeMin' | 'strikeMax' | 'expirations' | null>(null);
   
-  // Defer the filters so the sliders stay snappy
+  // Defer the filters and heavy data so the sliders stay snappy
   const deferredStrikeFilter = useDeferredValue(strikeFilter);
   const deferredSelectedExps = useDeferredValue(selectedExps);
+  const deferredMinDelta = useDeferredValue(minDelta);
+  const deferredMinMonths = useDeferredValue(minMonths);
+  const deferredMaxMonths = useDeferredValue(maxMonths);
 
   const prevTickerRef = useRef('');
   const capital = useMemo(() => capitalInput.replace(/[^0-9.]/g, ''), [capitalInput]);
 
-  const handleCapitalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCapitalChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const rawValue = e.target.value.replace(/[^0-9.]/g, '');
     setCapitalInput(formatNumberWithCommas(rawValue));
-  };
+  }, []);
 
-  const fetchOptions = async () => {
+  const fetchOptions = useCallback(async () => {
     if (!ticker) return;
-    const tickerChanged = prevTickerRef.current !== ticker;
-    prevTickerRef.current = ticker;
+    const currentTicker = ticker;
+    const tickerChanged = prevTickerRef.current !== currentTicker;
+    prevTickerRef.current = currentTicker;
 
     setLoading(true);
     setError(null);
     setShowMobileFilters(false);
     try {
       const params = new URLSearchParams({
-        ticker,
+        ticker: currentTicker,
         capital,
         minMonths: minMonths.toString(),
         maxMonths: maxMonths.toString(),
@@ -582,9 +593,6 @@ export default function CashSecuredPutAnalyzer() {
             setStrikeFilter([Math.min(...strikes), Math.max(...strikes)]);
             const exps = Array.from(new Set(json.options.map((o: OptionData) => o.expiration))) as string[];
             setSelectedExps(exps);
-          } else {
-            // If ticker is same, just ensure current filters are within bounds of new data if they were defaults
-            // Actually, usually we just want to keep them.
           }
         }
       }
@@ -593,7 +601,7 @@ export default function CashSecuredPutAnalyzer() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [ticker, capital, minMonths, maxMonths, minDelta]);
 
   useEffect(() => {
     fetchOptions();
@@ -812,8 +820,8 @@ export default function CashSecuredPutAnalyzer() {
                               type="checkbox" 
                               checked={selectedExps.includes(exp)}
                               onChange={(e) => {
-                                if (e.target.checked) setSelectedExps([...selectedExps, exp]);
-                                else setSelectedExps(selectedExps.filter(s => s !== exp));
+                                const checked = e.target.checked;
+                                setSelectedExps(prev => checked ? [...prev, exp] : prev.filter(s => s !== exp));
                               }}
                               className="w-4 h-4 accent-emerald-500 bg-zinc-900 border-zinc-800 rounded-sm group-hover:border-zinc-700"
                             />
