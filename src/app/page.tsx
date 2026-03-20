@@ -556,6 +556,7 @@ export default function CashSecuredPutAnalyzer() {
   const deferredMaxMonths = useDeferredValue(maxMonths);
 
   const prevTickerRef = useRef('');
+  const prevMteRef = useRef({ min: 0, max: 6 });
   const capital = useMemo(() => capitalInput.replace(/[^0-9.]/g, ''), [capitalInput]);
 
   const handleCapitalChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -607,6 +608,14 @@ export default function CashSecuredPutAnalyzer() {
   useEffect(() => {
     fetchOptions();
   }, []);
+
+  // Reset expirations when MTE filters change
+  useEffect(() => {
+    if (data?.options) {
+      const allExps = Array.from(new Set(data.options.map(o => o.expiration)));
+      setSelectedExps(allExps);
+    }
+  }, [minMonths, maxMonths]);
 
   const filteredOptions = useMemo(() => {
     if (!data) return [];
