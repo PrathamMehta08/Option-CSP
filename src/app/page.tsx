@@ -356,7 +356,9 @@ const CustomKeypad = memo(({
     if (type !== 'months') {
        const timer = setTimeout(() => {
          const numeric = parseFloat(input);
-         if (!isNaN(numeric)) onChange(numeric);
+         if (!isNaN(numeric)) {
+           onChange(type === 'delta' ? -Math.abs(numeric) : numeric);
+         }
        }, 50); // Small 50ms debounce
        return () => clearTimeout(timer);
     }
@@ -421,6 +423,7 @@ const CustomKeypad = memo(({
              isFirstKey ? "text-zinc-600 opacity-60" : "text-white"
            )}>
              {type === 'strike' && <span className={cn(isFirstKey ? "text-zinc-800" : "text-zinc-700", "mr-2")}>$</span>}
+             {type === 'delta' && <span className={cn(isFirstKey ? "text-zinc-800" : "text-zinc-700", "mr-0.5")}>-</span>}
              {input}
            </div>
         </div>
@@ -444,7 +447,7 @@ const CustomKeypad = memo(({
     <div className="fixed inset-0 z-[100] flex flex-col justify-end bg-black/60 backdrop-blur-sm">
       <div className="bg-black border-t border-zinc-800 rounded-t-[2rem] overflow-hidden h-[75vh]">
         {type === 'months' ? (
-          <div className="flex flex-col h-full bg-black">
+          <div className="flex flex-col h-full bg-black animate-in slide-in-from-bottom duration-300 rounded-t-[2rem] overflow-hidden border-t border-zinc-800">
              <div className="flex items-center justify-between p-3 border-b border-zinc-900">
                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Expiry Selection</span>
                 <button onClick={onClose} className="p-2 bg-zinc-900 rounded-full text-zinc-400"><X size={24} /></button>
@@ -464,7 +467,7 @@ export default function CashSecuredPutAnalyzer() {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [capitalInput, setCapitalInput] = useState('10,000');
+  const [capitalInput, setCapitalInput] = useState('100,000');
   const [minMonths, setMinMonths] = useState(0);
   const [maxMonths, setMaxMonths] = useState(6);
   const [minDelta, setMinDelta] = useState(-0.2);
@@ -599,37 +602,34 @@ export default function CashSecuredPutAnalyzer() {
 
               <div className="space-y-3">
                 <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Months to Expiry</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button onClick={() => setActiveKeypad('minMonths')} className="bg-zinc-900 py-3 rounded-xl border border-zinc-800 text-left px-4 group">
-                    <p className="text-[8px] text-zinc-600 uppercase font-black mb-0.5">Min</p>
-                    <span className="text-sm text-white">{minMonths}</span>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setActiveKeypad('minMonths')} className="flex-1 bg-zinc-900 border border-zinc-800 rounded-md py-2 px-3 text-sm text-left text-white group">
+                    <span>{minMonths}</span>
                   </button>
-                  <button onClick={() => setActiveKeypad('maxMonths')} className="bg-zinc-900 py-3 rounded-xl border border-zinc-800 text-left px-4">
-                    <p className="text-[8px] text-zinc-600 uppercase font-black mb-0.5">Max</p>
-                    <span className="text-sm text-white">{maxMonths}</span>
+                  <span className="text-zinc-700 font-bold">→</span>
+                  <button onClick={() => setActiveKeypad('maxMonths')} className="flex-1 bg-zinc-900 border border-zinc-800 rounded-md py-2 px-3 text-sm text-left text-white">
+                    <span>{maxMonths}</span>
                   </button>
                 </div>
               </div>
 
               <div className="space-y-3">
                 <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Max Delta</label>
-                <button onClick={() => setActiveKeypad('minDelta')} className="w-full bg-zinc-900 py-3 rounded-xl border border-zinc-800 text-left px-4 group">
-                  <p className="text-[8px] text-zinc-600 uppercase font-black mb-0.5">Filter Limit</p>
-                  <span className="text-sm font-mono text-white">{minDelta}</span>
+                <button onClick={() => setActiveKeypad('minDelta')} className="w-full bg-zinc-900 border border-zinc-800 rounded-md py-2 px-3 text-sm text-left text-white group hover:border-zinc-700 transition-colors">
+                  <span className="font-mono">-{Math.abs(minDelta)}</span>
                 </button>
               </div>
 
               {data && (
-                <div className="space-y-4 pt-6 border-t border-zinc-900">
+                <div className="space-y-3 pt-6 border-t border-zinc-900">
                   <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Strike Price Range</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button onClick={() => setActiveKeypad('strikeMin')} className="bg-zinc-900 py-3 rounded-xl border border-zinc-800 text-left px-4">
-                      <p className="text-[8px] text-zinc-600 uppercase font-black mb-0.5">Min Strike</p>
-                      <span className="text-sm font-mono text-white">${strikeFilter[0]}</span>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setActiveKeypad('strikeMin')} className="flex-1 bg-zinc-900 border border-zinc-800 rounded-md py-2 px-3 text-sm text-left text-white">
+                      <span className="font-mono">${strikeFilter[0]}</span>
                     </button>
-                    <button onClick={() => setActiveKeypad('strikeMax')} className="bg-zinc-900 py-3 rounded-xl border border-zinc-800 text-left px-4">
-                      <p className="text-[8px] text-zinc-600 uppercase font-black mb-0.5">Max Strike</p>
-                      <span className="text-sm font-mono text-white">${strikeFilter[1]}</span>
+                    <span className="text-zinc-700 font-bold">→</span>
+                    <button onClick={() => setActiveKeypad('strikeMax')} className="flex-1 bg-zinc-900 border border-zinc-800 rounded-md py-2 px-3 text-sm text-left text-white">
+                      <span className="font-mono">${strikeFilter[1]}</span>
                     </button>
                   </div>
                 </div>
