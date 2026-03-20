@@ -325,36 +325,56 @@ const CustomKeypad = memo(({
   tickerPrice?: number
 }) => {
   const [input, setInput] = useState(value.toString());
+  const [isFirstKey, setIsFirstKey] = useState(true);
 
   const handleKey = (key: string) => {
     if (key === 'BACK') {
-      setInput(prev => prev.length > 1 ? prev.slice(0, -1) : '0');
+      if (isFirstKey) {
+        setInput(prev => prev.length > 1 ? prev.slice(0, -1) : '0');
+        setIsFirstKey(false);
+      } else {
+        setInput(prev => prev.length > 1 ? prev.slice(0, -1) : '0');
+      }
     } else if (key === '.') {
-      if (!input.includes('.')) setInput(prev => prev + '.');
+      if (isFirstKey) {
+        setInput('0.');
+        setIsFirstKey(false);
+      } else {
+        if (!input.includes('.')) setInput(prev => prev + '.');
+      }
     } else {
-      setInput(prev => prev === '0' ? key : prev + key);
+      if (isFirstKey) {
+        setInput(key);
+        setIsFirstKey(false);
+      } else {
+        setInput(prev => prev === '0' ? key : prev + key);
+      }
     }
   };
 
   useEffect(() => {
     if (type !== 'months') {
-       const numeric = parseFloat(input);
-       if (!isNaN(numeric)) onChange(numeric);
+       const timer = setTimeout(() => {
+         const numeric = parseFloat(input);
+         if (!isNaN(numeric)) onChange(numeric);
+       }, 50); // Small 50ms debounce
+       return () => clearTimeout(timer);
     }
-  }, [input]);
+  }, [input, onChange, type]);
 
   const MonthsGrid = () => (
-    <div className="max-w-xs mx-auto grid grid-cols-3 gap-3 p-4">
-      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
+    <div className="flex-1 grid grid-cols-4 grid-rows-4 gap-0.5 p-0.5 bg-zinc-950/50 rounded-xl overflow-hidden min-h-0">
+      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0].map(m => (
         <button 
           key={m}
           onClick={() => { onChange(m); onClose(); }}
           className={cn(
-            "py-8 rounded-[2rem] font-bold transition-all active:scale-95 text-lg",
-            value === m ? "bg-emerald-500 text-black" : "bg-zinc-900 text-white border border-zinc-800"
+            "text-xl font-medium transition-colors flex items-center justify-center",
+            value === m ? "bg-emerald-500 text-black hover:bg-emerald-400" : "bg-zinc-900/40 hover:bg-zinc-800/60 text-white",
+            m === 0 && "col-start-2 col-span-2"
           )}
         >
-          {m}m
+          {m}
         </button>
       ))}
     </div>
@@ -364,6 +384,7 @@ const CustomKeypad = memo(({
     const presets = type === 'delta' 
       ? [-0.10, -0.15, -0.20, -0.30, -0.40] 
       : tickerPrice ? [
+          { label: '-0%', val: tickerPrice },
           { label: '-5%', val: tickerPrice * 0.95 },
           { label: '-10%', val: tickerPrice * 0.90 },
           { label: '-15%', val: tickerPrice * 0.85 },
@@ -385,6 +406,7 @@ const CustomKeypad = memo(({
                onClick={() => {
                  const val = typeof p === 'number' ? p : p.val;
                  setInput(val.toFixed(type === 'delta' ? 2 : 2));
+                 setIsFirstKey(false);
                }}
                className="px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-full text-[10px] font-bold text-zinc-300 active:bg-emerald-500 active:text-black transition-colors"
              >
@@ -393,10 +415,12 @@ const CustomKeypad = memo(({
           ))}
         </div>
 
-        <div className="px-6 py-1 flex flex-col items-center justify-center bg-zinc-950">
-           <span className="text-[8px] text-zinc-600 uppercase font-black mb-0.5 tracking-widest">Current Input</span>
-           <div className="text-3xl font-mono font-bold text-white tracking-tighter">
-             {type === 'strike' && <span className="text-zinc-700 mr-2">$</span>}
+        <div className="px-6 py-2 flex flex-col items-center justify-center bg-zinc-950">
+           <div className={cn(
+             "text-3xl font-mono font-bold tracking-tighter transition-opacity",
+             isFirstKey ? "text-zinc-600 opacity-60" : "text-white"
+           )}>
+             {type === 'strike' && <span className={cn(isFirstKey ? "text-zinc-800" : "text-zinc-700", "mr-2")}>$</span>}
              {input}
            </div>
         </div>
@@ -420,10 +444,10 @@ const CustomKeypad = memo(({
     <div className="fixed inset-0 z-[100] flex flex-col justify-end bg-black/60 backdrop-blur-sm">
       <div className="bg-black border-t border-zinc-800 rounded-t-[2rem] overflow-hidden h-[75vh]">
         {type === 'months' ? (
-          <div className="p-4">
-             <div className="flex items-center justify-between mb-8 px-4 pt-4">
+          <div className="flex flex-col h-full bg-black">
+             <div className="flex items-center justify-between p-3 border-b border-zinc-900">
                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Expiry Selection</span>
-                <button onClick={onClose} className="p-3 bg-zinc-900 rounded-full text-zinc-400"><X size={24} /></button>
+                <button onClick={onClose} className="p-2 bg-zinc-900 rounded-full text-zinc-400"><X size={24} /></button>
              </div>
              <MonthsGrid />
           </div>
@@ -449,6 +473,10 @@ export default function CashSecuredPutAnalyzer() {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   // Custom Keyboard State
+  // Custom Keyboard Handlers
+  const handleCloseKeypad = React.useCallback(() => setActiveKeypad(null), []);
+  const handleStrikeMinChange = React.useCallback((v: number) => setStrikeFilter(prev => [v, prev[1]]), []);
+  const handleStrikeMaxChange = React.useCallback((v: number) => setStrikeFilter(prev => [prev[0], v]), []);
   const [activeKeypad, setActiveKeypad] = useState<'minMonths' | 'maxMonths' | 'minDelta' | 'strikeMin' | 'strikeMax' | null>(null);
   
   // Defer the filters so the sliders stay snappy
@@ -777,7 +805,7 @@ export default function CashSecuredPutAnalyzer() {
         <CustomKeypad 
           type="months" 
           value={minMonths} 
-          onClose={() => setActiveKeypad(null)} 
+          onClose={handleCloseKeypad} 
           onChange={setMinMonths} 
         />
       )}
@@ -785,7 +813,7 @@ export default function CashSecuredPutAnalyzer() {
         <CustomKeypad 
           type="months" 
           value={maxMonths} 
-          onClose={() => setActiveKeypad(null)} 
+          onClose={handleCloseKeypad} 
           onChange={setMaxMonths} 
         />
       )}
@@ -793,7 +821,7 @@ export default function CashSecuredPutAnalyzer() {
         <CustomKeypad 
           type="delta" 
           value={minDelta} 
-          onClose={() => setActiveKeypad(null)} 
+          onClose={handleCloseKeypad} 
           onChange={setMinDelta} 
         />
       )}
@@ -801,8 +829,8 @@ export default function CashSecuredPutAnalyzer() {
         <CustomKeypad 
           type="strike" 
           value={strikeFilter[0]} 
-          onClose={() => setActiveKeypad(null)} 
-          onChange={(val) => setStrikeFilter([val, strikeFilter[1]])} 
+          onClose={handleCloseKeypad} 
+          onChange={handleStrikeMinChange} 
           tickerPrice={data.currentPrice}
         />
       )}
@@ -810,8 +838,8 @@ export default function CashSecuredPutAnalyzer() {
         <CustomKeypad 
           type="strike" 
           value={strikeFilter[1]} 
-          onClose={() => setActiveKeypad(null)} 
-          onChange={(val) => setStrikeFilter([strikeFilter[0], val])} 
+          onClose={handleCloseKeypad} 
+          onChange={handleStrikeMaxChange} 
           tickerPrice={data.currentPrice}
         />
       )}
