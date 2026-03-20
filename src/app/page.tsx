@@ -591,7 +591,8 @@ export default function CashSecuredPutAnalyzer() {
           if (tickerChanged) {
             const strikes = json.options.map((o: OptionData) => o.strike);
             setStrikeFilter([Math.min(...strikes), Math.max(...strikes)]);
-            const exps = Array.from(new Set(json.options.map((o: OptionData) => o.expiration))) as string[];
+            const exps = Array.from(new Set(json.options.map((o: OptionData) => o.expiration)))
+              .sort((a, b) => new Date(a as string).getTime() - new Date(b as string).getTime()) as string[];
             setSelectedExps(exps);
           }
         }
@@ -814,20 +815,27 @@ export default function CashSecuredPutAnalyzer() {
                     <div className="space-y-3">
                       <label className="text-xs font-semibold text-zinc-400">Specific Expirations</label>
                       <div className="max-h-60 overflow-y-auto space-y-1 pr-2 scrollbar-thin font-mono">
-                        {Array.from(new Set(data.options.map(o => o.expiration))).map(exp => (
-                          <label key={exp} className="flex items-center gap-3 text-[11px] text-zinc-500 hover:text-white cursor-pointer transition-colors py-2 border-b border-zinc-900 last:border-none group">
-                            <input 
-                              type="checkbox" 
-                              checked={selectedExps.includes(exp)}
-                              onChange={(e) => {
-                                const checked = e.target.checked;
-                                setSelectedExps(prev => checked ? [...prev, exp] : prev.filter(s => s !== exp));
-                              }}
-                              className="w-4 h-4 accent-emerald-500 bg-zinc-900 border-zinc-800 rounded-sm group-hover:border-zinc-700"
-                            />
-                            {exp}
-                          </label>
-                        ))}
+                        {Array.from(new Set(data.options.map(o => o.expiration)))
+                          .sort((a, b) => new Date(a as string).getTime() - new Date(b as string).getTime())
+                          .map(exp => (
+                            <label key={exp} className="flex items-center gap-3 text-[11px] text-zinc-500 hover:text-white cursor-pointer transition-colors py-2 border-b border-zinc-900 last:border-none group">
+                              <input 
+                                type="checkbox" 
+                                checked={selectedExps.includes(exp)}
+                                onChange={(e) => {
+                                  const checked = e.target.checked;
+                                  setSelectedExps(prev => checked ? [...prev, exp] : prev.filter(s => s !== exp));
+                                }}
+                                className="w-4 h-4 accent-emerald-500 bg-zinc-900 border-zinc-800 rounded-sm group-hover:border-zinc-700"
+                              />
+                              {(function(dateStr: string) {
+                                try {
+                                  const d = new Date(dateStr + 'T12:00:00');
+                                  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                                } catch { return dateStr; }
+                              })(exp)}
+                            </label>
+                          ))}
                       </div>
                     </div>
                   </div>
@@ -939,7 +947,8 @@ export default function CashSecuredPutAnalyzer() {
           value={selectedExps} 
           onClose={handleCloseKeypad} 
           onChange={setSelectedExps} 
-          allExps={Array.from(new Set(data.options.map(o => o.expiration))) as string[]}
+          allExps={Array.from(new Set(data.options.map(o => o.expiration)))
+            .sort((a, b) => new Date(a as string).getTime() - new Date(b as string).getTime()) as string[]}
         />
       )}
     </div>
