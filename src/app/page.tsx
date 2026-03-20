@@ -316,13 +316,15 @@ const CustomKeypad = memo(({
   value, 
   onClose, 
   onChange,
-  tickerPrice 
+  tickerPrice,
+  allExps
 }: { 
-  type: 'months' | 'delta' | 'strike', 
-  value: string | number, 
+  type: 'months' | 'delta' | 'strike' | 'expirations', 
+  value: any, 
   onClose: () => void, 
   onChange: (val: any) => void,
-  tickerPrice?: number
+  tickerPrice?: number,
+  allExps?: string[]
 }) => {
   const [input, setInput] = useState(value.toString());
   const [isFirstKey, setIsFirstKey] = useState(true);
@@ -330,30 +332,30 @@ const CustomKeypad = memo(({
   const handleKey = (key: string) => {
     if (key === 'BACK') {
       if (isFirstKey) {
-        setInput(prev => prev.length > 1 ? prev.slice(0, -1) : '0');
+        setInput((prev: string) => prev.length > 1 ? prev.slice(0, -1) : '0');
         setIsFirstKey(false);
       } else {
-        setInput(prev => prev.length > 1 ? prev.slice(0, -1) : '0');
+        setInput((prev: string) => prev.length > 1 ? prev.slice(0, -1) : '0');
       }
     } else if (key === '.') {
       if (isFirstKey) {
         setInput('0.');
         setIsFirstKey(false);
       } else {
-        if (!input.includes('.')) setInput(prev => prev + '.');
+        if (!input.includes('.')) setInput((prev: string) => prev + '.');
       }
     } else {
       if (isFirstKey) {
         setInput(key);
         setIsFirstKey(false);
       } else {
-        setInput(prev => prev === '0' ? key : prev + key);
+        setInput((prev: string) => prev === '0' ? key : prev + key);
       }
     }
   };
 
   useEffect(() => {
-    if (type !== 'months') {
+    if (type !== 'months' && type !== 'expirations') {
        const timer = setTimeout(() => {
          const numeric = parseFloat(input);
          if (!isNaN(numeric)) {
@@ -363,6 +365,15 @@ const CustomKeypad = memo(({
        return () => clearTimeout(timer);
     }
   }, [input, onChange, type]);
+
+  const formatDateLabel = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr + 'T12:00:00'); // Ensure middle of day to avoid timezone shifts
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } catch {
+      return dateStr;
+    }
+  };
 
   const MonthsGrid = () => (
     <div className="flex-1 grid grid-cols-4 grid-rows-4 gap-0.5 p-0.5 bg-zinc-950/50 rounded-xl overflow-hidden min-h-0">
@@ -379,6 +390,40 @@ const CustomKeypad = memo(({
           {m}
         </button>
       ))}
+    </div>
+  );
+
+  const ExpirationsGrid = () => (
+    <div className="flex-1 overflow-y-auto p-0.5 bg-zinc-950/50 scrollbar-none">
+       <div className="grid grid-cols-3 gap-0.5 rounded-xl overflow-hidden">
+        {allExps?.map((exp: string) => {
+          const isSelected = value.includes(exp);
+          return (
+            <button 
+              key={exp}
+              onClick={() => {
+                const newVal = isSelected 
+                  ? value.filter((e: string) => e !== exp)
+                  : [...value, exp];
+                onChange(newVal);
+              }}
+              className={cn(
+                "py-6 flex flex-col items-center justify-center transition-all",
+                isSelected 
+                  ? "bg-emerald-500 text-black shadow-[inset_0_0_20px_rgba(0,0,0,0.1)]" 
+                  : "bg-zinc-900/40 text-zinc-400 hover:bg-zinc-900/60"
+              )}
+            >
+              <span className="text-[10px] font-black uppercase tracking-tighter opacity-60 mb-1">
+                {isSelected ? 'Included' : 'Hidden'}
+              </span>
+              <span className="text-sm font-bold tracking-tight">
+                {formatDateLabel(exp)}
+              </span>
+            </button>
+          );
+        })}
+       </div>
     </div>
   );
 
@@ -445,14 +490,28 @@ const CustomKeypad = memo(({
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col justify-end bg-black/60 backdrop-blur-sm">
-      <div className="bg-black border-t border-zinc-800 rounded-t-[2rem] overflow-hidden h-[75vh]">
+      <div className="bg-black border-t border-zinc-800 rounded-t-[2rem] overflow-hidden h-fit max-h-[85vh] min-h-[50vh] flex flex-col">
         {type === 'months' ? (
-          <div className="flex flex-col h-full bg-black animate-in slide-in-from-bottom duration-300 rounded-t-[2rem] overflow-hidden border-t border-zinc-800">
+          <div className="flex flex-col flex-1 bg-black animate-in slide-in-from-bottom duration-300 rounded-t-[2rem] overflow-hidden border-t border-zinc-800">
              <div className="flex items-center justify-between p-3 border-b border-zinc-900">
                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Expiry Selection</span>
                 <button onClick={onClose} className="p-2 bg-zinc-900 rounded-full text-zinc-400"><X size={24} /></button>
              </div>
              <MonthsGrid />
+          </div>
+        ) : type === 'expirations' ? (
+          <div className="flex flex-col flex-1 bg-black animate-in slide-in-from-bottom duration-300 rounded-t-[2rem] overflow-hidden border-t border-zinc-800">
+             <div className="flex items-center justify-between p-3 border-b border-zinc-900">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Filter Strike Dates</span>
+                <div className="flex items-center gap-2">
+                   <button 
+                     onClick={() => onChange(allExps || [])}
+                     className="px-3 py-1.5 bg-zinc-900 rounded-lg text-[10px] font-bold text-zinc-400 uppercase tracking-widest hover:text-white"
+                   >All</button>
+                   <button onClick={onClose} className="p-2 bg-zinc-900 rounded-full text-zinc-400"><X size={24} /></button>
+                </div>
+             </div>
+             <ExpirationsGrid />
           </div>
         ) : <Keypad />}
       </div>
@@ -480,7 +539,7 @@ export default function CashSecuredPutAnalyzer() {
   const handleCloseKeypad = React.useCallback(() => setActiveKeypad(null), []);
   const handleStrikeMinChange = React.useCallback((v: number) => setStrikeFilter(prev => [v, prev[1]]), []);
   const handleStrikeMaxChange = React.useCallback((v: number) => setStrikeFilter(prev => [prev[0], v]), []);
-  const [activeKeypad, setActiveKeypad] = useState<'minMonths' | 'maxMonths' | 'minDelta' | 'strikeMin' | 'strikeMax' | null>(null);
+  const [activeKeypad, setActiveKeypad] = useState<'minMonths' | 'maxMonths' | 'minDelta' | 'strikeMin' | 'strikeMax' | 'expirations' | null>(null);
   
   // Defer the filters so the sliders stay snappy
   const deferredStrikeFilter = useDeferredValue(strikeFilter);
@@ -617,6 +676,29 @@ export default function CashSecuredPutAnalyzer() {
                 <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Max Delta</label>
                 <button onClick={() => setActiveKeypad('minDelta')} className="w-full bg-zinc-900 border border-zinc-800 rounded-md py-2 px-3 text-sm text-left text-white group hover:border-zinc-700 transition-colors">
                   <span className="font-mono">-{Math.abs(minDelta)}</span>
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Expirations</label>
+                <button 
+                  onClick={() => setActiveKeypad('expirations')} 
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md py-2 px-3 text-sm text-left text-white flex items-center justify-between group"
+                >
+                  <span className="truncate max-w-[200px]">
+                    {selectedExps.length === 0 ? 'None selected' : 
+                     selectedExps.length === Array.from(new Set((data?.options || []).map(o => o.expiration))).length ? 'All selected' :
+                     selectedExps.length === 1 ? (function(dateStr: string) {
+                        try {
+                          const d = new Date(dateStr + 'T12:00:00');
+                          return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        } catch { return dateStr; }
+                     })(selectedExps[0]) :
+                     `${selectedExps.length} Dates`}
+                  </span>
+                  <div className="w-6 h-6 rounded bg-zinc-800 flex items-center justify-center text-[10px] font-black group-active:bg-emerald-500 group-active:text-black">
+                     {selectedExps.length}
+                  </div>
                 </button>
               </div>
 
@@ -841,6 +923,15 @@ export default function CashSecuredPutAnalyzer() {
           onClose={handleCloseKeypad} 
           onChange={handleStrikeMaxChange} 
           tickerPrice={data.currentPrice}
+        />
+      )}
+      {activeKeypad === 'expirations' && data && (
+        <CustomKeypad 
+          type="expirations" 
+          value={selectedExps} 
+          onClose={handleCloseKeypad} 
+          onChange={setSelectedExps} 
+          allExps={Array.from(new Set(data.options.map(o => o.expiration))) as string[]}
         />
       )}
     </div>
