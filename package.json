@@ -9,6 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.69",
+    "@ai-sdk/react": "^3.0.201",
+    "ai": "^6.0.199",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.37.0",
@@ -18,7 +21,8 @@
     "react-dom": "19.2.3",
     "recharts": "^3.8.0",
     "tailwind-merge": "^3.5.0",
-    "yahoo-finance2": "^3.13.2"
+    "yahoo-finance2": "^3.13.2",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

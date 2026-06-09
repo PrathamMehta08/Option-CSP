@@ -20,8 +20,10 @@ import {
   LayoutGrid,
   ArrowUpDown,
   X,
-  Delete
+  Delete,
+  XCircle
 } from 'lucide-react';
+import LLMChatbot from '@/components/LLMChatbot';
 import { 
   ScatterChart, 
   Scatter, 
@@ -77,6 +79,12 @@ type SortConfig = {
   direction: 'asc' | 'desc' | null;
 };
 
+interface CustomFilter {
+  id: string;
+  name: string;
+  code: string;
+}
+
 // --- Memoized Components ---
 
 const AnalysisChart = memo(({ title, icon: Icon, data, xAxisKey, xAxisName, yAxisKey, yAxisName, unit, color }: any) => {
@@ -118,8 +126,14 @@ const AnalysisChart = memo(({ title, icon: Icon, data, xAxisKey, xAxisName, yAxi
 });
 AnalysisChart.displayName = 'AnalysisChart';
 
-const ResultsTable = memo(({ options, title, count }: { options: OptionData[], title: string, count?: number }) => {
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: null, direction: null });
+const ResultsTable = memo(({ 
+  options, title, count, externalSortConfig, onExternalSortChange 
+}: { 
+  options: OptionData[], title: string, count?: number, 
+  externalSortConfig?: SortConfig, onExternalSortChange?: (config: SortConfig) => void 
+}) => {
+  const [localSortConfig, setLocalSortConfig] = useState<SortConfig>({ key: null, direction: null });
+  const sortConfig = externalSortConfig !== undefined ? externalSortConfig : localSortConfig;
 
   const handleSort = (key: keyof OptionData) => {
     let direction: 'asc' | 'desc' | null = 'desc';
@@ -128,7 +142,11 @@ const ResultsTable = memo(({ options, title, count }: { options: OptionData[], t
     } else if (sortConfig.key === key && sortConfig.direction === 'asc') {
       direction = null;
     }
-    setSortConfig({ key, direction });
+    if (onExternalSortChange) {
+      onExternalSortChange({ key, direction });
+    } else {
+      setLocalSortConfig({ key, direction });
+    }
   };
 
   const processedOptions = useMemo(() => {
@@ -540,6 +558,9 @@ export default function CashSecuredPutAnalyzer() {
   const [strikeFilter, setStrikeFilter] = useState<[number, number]>([0, 2000]);
   const [selectedExps, setSelectedExps] = useState<string[]>([]);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [customFilters, setCustomFilters] = useState<CustomFilter[]>([]);
+  const [needsFetch, setNeedsFetch] = useState(false);
+  const [globalSortConfig, setGlobalSortConfig] = useState<SortConfig>({ key: null, direction: null });
 
   // Custom Keyboard State
   // Custom Keyboard Handlers
@@ -606,6 +627,13 @@ export default function CashSecuredPutAnalyzer() {
   }, [ticker, capital, minMonths, maxMonths, minDelta]);
 
   useEffect(() => {
+    if (needsFetch) {
+      fetchOptions();
+      setNeedsFetch(false);
+    }
+  }, [needsFetch, fetchOptions]);
+
+  useEffect(() => {
     fetchOptions();
   }, []);
 
@@ -623,9 +651,25 @@ export default function CashSecuredPutAnalyzer() {
       const strikeMatch = opt.strike >= deferredStrikeFilter[0] && opt.strike <= deferredStrikeFilter[1];
       const expMatch = deferredSelectedExps.includes(opt.expiration);
       const affordableMatch = opt.maxContracts > 0;
-      return strikeMatch && expMatch && affordableMatch;
+      
+      let aiMatch = true;
+      for (const filter of customFilters) {
+        try {
+          const fn = new Function('opt', `return ${filter.code}`);
+          if (!fn(opt)) {
+            aiMatch = false;
+            break;
+          }
+        } catch (e) {
+          console.error("Filter eval error:", e);
+          aiMatch = false;
+          break;
+        }
+      }
+
+      return strikeMatch && expMatch && affordableMatch && aiMatch;
     });
-  }, [data, deferredStrikeFilter, deferredSelectedExps]);
+  }, [data, deferredStrikeFilter, deferredSelectedExps, customFilters]);
 
   return (
     <div className="min-h-screen font-sans antialiased text-white selection:bg-emerald-500/30 pb-16">
@@ -752,7 +796,26 @@ export default function CashSecuredPutAnalyzer() {
           <aside className="hidden lg:block lg:col-span-3 lg:sticky lg:top-[120px] max-h-[calc(100vh-160px)] overflow-y-auto pr-8 scrollbar-thin pb-20">
             <div className="space-y-10">
               <section className="space-y-6">
-                <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 border-b border-zinc-900 pb-2">Analysis Parameters</h2>
+                <div className="flex flex-col gap-2 border-b border-zinc-900 pb-2">
+                  <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Analysis Parameters</h2>
+                  
+                  {/* Active Filters Display */}
+                  {customFilters.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {customFilters.map(filter => (
+                        <div key={filter.id} className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-md text-[10px] font-bold text-emerald-500 uppercase tracking-widest group">
+                          <span>{filter.name}</span>
+                          <button 
+                            onClick={() => setCustomFilters(prev => prev.filter(f => f.id !== filter.id))}
+                            className="p-0.5 rounded-full hover:bg-emerald-500/20 hover:text-emerald-400 transition-colors"
+                          >
+                            <XCircle size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 
                 <div className="space-y-8">
                   <div className="space-y-3">
@@ -865,7 +928,7 @@ export default function CashSecuredPutAnalyzer() {
             {data && filteredOptions.length > 0 ? (
               <div className="space-y-16 md:space-y-24">
                 {/* Top Picks */}
-                <ResultsTable title="Best Cash-Secured Put Opportunities" options={filteredOptions.slice(0, 10)} />
+                <ResultsTable title="Best Cash-Secured Put Opportunities" options={filteredOptions.slice(0, 10)} externalSortConfig={globalSortConfig} onExternalSortChange={setGlobalSortConfig} />
 
                 {/* Charts */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10 text-white font-sans">
@@ -874,7 +937,7 @@ export default function CashSecuredPutAnalyzer() {
                 </div>
 
                 {/* Full Results */}
-                <ResultsTable title="Full Market Scan Results" options={filteredOptions} count={filteredOptions.length} />
+                <ResultsTable title="Full Market Scan Results" options={filteredOptions} count={filteredOptions.length} externalSortConfig={globalSortConfig} onExternalSortChange={setGlobalSortConfig} />
               </div>
             ) : (
               <div className="h-[40vh] md:h-[50vh] flex flex-col items-center justify-center space-y-6 md:space-y-10 rounded-[2rem] border border-zinc-900 bg-zinc-950/20 px-8 text-center bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-900/40 via-transparent to-transparent">
@@ -960,6 +1023,18 @@ export default function CashSecuredPutAnalyzer() {
             .sort((a, b) => new Date(a as string).getTime() - new Date(b as string).getTime()) as string[]}
         />
       )}
+      
+      <LLMChatbot 
+        setTicker={setTicker}
+        setCapital={setCapitalInput}
+        setMinMonths={setMinMonths}
+        setMaxMonths={setMaxMonths}
+        setMinDelta={setMinDelta}
+        setStrikeFilter={setStrikeFilter}
+        addCustomFilter={(filter) => setCustomFilters(prev => [...prev.filter(f => f.id !== filter.id), filter])}
+        setSortConfig={setGlobalSortConfig}
+        triggerFetch={() => setNeedsFetch(true)}
+      />
     </div>
   );
 }
