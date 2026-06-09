@@ -128,7 +128,7 @@ export default function LLMChatbot({
             </div>
             <div>
               <h3 className="font-bold text-white text-sm">AI Assistant</h3>
-              <p className="text-[10px] text-zinc-400 uppercase tracking-wider">Covered Calls</p>
+              <p className="text-[10px] text-zinc-400 uppercase tracking-wider">Cash-Secured Puts</p>
             </div>
           </div>
           <button
