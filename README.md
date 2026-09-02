@@ -1,3 +1,16 @@
+> # Moved
+>
+> This app now lives in **[Option-CC](https://github.com/PrathamMehta08/Option-CC)**, which
+> screens both covered calls and cash-secured puts from a single deployment. Pick the
+> strategy from the switcher in the header.
+>
+> The two codebases were about 90% identical. Everything that genuinely differed — which
+> side of the chain to read, how capital required is computed, which delta function, the
+> default knob positions — now lives behind one strategy module, so the shared 90% is
+> written once.
+>
+> Nothing further will be merged here.
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
